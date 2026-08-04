@@ -24,7 +24,7 @@ FORM_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>SHS ELITE AI - Minecraft Block Generator</title>
+    <title>MCDex - Minecraft Block Generator</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <style>
         *, *::before, *::after { box-sizing: border-box; }
@@ -59,7 +59,7 @@ FORM_HTML = """<!DOCTYPE html>
 </head>
 <body>
     <div class="card">
-        <h2>SHS ELITE AI - Minecraft Block Generator</h2>
+        <h2>MCDex - Minecraft Block Generator</h2>
         <form method="post">
             <label>Block name: <input type="text" name="block_name" placeholder="elite_block"></label>
             <label>Block type:
@@ -143,7 +143,7 @@ def index():
 </head>
 <body>
     <div class="panel">
-        <div class="title">⚡ SHS ELITE AI - MINECRAFT CODE SUCCESSFUL:</div>
+        <div class="title">⚡ MCDex - MINECRAFT CODE SUCCESSFUL:</div>
         <p>Copy this into your Behavior Pack (components/blocks/{{ block_id }}.json):</p>
         <pre>{{ generated_code }}</pre>
         <br>
