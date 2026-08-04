@@ -69,7 +69,7 @@ def generate_mod():
     </body>
     </html>
     """
-    
+    <iframe scr="about:blank"></iframe>
     # 6. Activation de la sécurité CORS pour autoriser l'affichage dans l'iframe Vercel
     response = make_response(html_response)
     response.headers['Access-Control-Allow-Origin'] = '*'
