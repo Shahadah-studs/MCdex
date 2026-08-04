@@ -5,11 +5,11 @@ import subprocess
 import tempfile
 from typing import Tuple
 
-import requests
-
-from pathlib import Path
-
-from nbt import nbt as nbtlib  # optional, for NBT checks if available
+# optional NBT library (nbt / nbtlib) — import if available
+try:
+    from nbt import nbt as nbtlib  # type: ignore
+except Exception:
+    nbtlib = None
 
 
 def static_validate_block_json(block_json: str) -> Tuple[bool, str]:
@@ -94,8 +94,12 @@ def verify_block(block_json: str, block_id: str, work_base: str = None, timeout:
         datapack_dir = os.path.join(tmpdir, 'datapack', 'data', 'mcdex', 'functions')
         os.makedirs(datapack_dir, exist_ok=True)
         # minimal pack.mcmeta for Java
-        with open(os.path.join(tmpdir, 'datapack', 'pack.mcmeta'), 'w', encoding='utf-8') as f:
-            f.write('{"pack":{"pack_format":15,"description":"MCdex generated pack"}}')
+        try:
+            with open(os.path.join(tmpdir, 'datapack', 'pack.mcmeta'), 'w', encoding='utf-8') as f:
+                f.write('{"pack":{"pack_format":15,"description":"MCdex generated pack"}}')
+        except Exception as e:
+            # Not fatal; we can continue with verification attempts
+            pass
 
         # Attempt full docker verification
         docker_success, docker_logs = run_docker_verifier(tmpdir, timeout=timeout)
@@ -104,7 +108,7 @@ def verify_block(block_json: str, block_id: str, work_base: str = None, timeout:
 
         # fallback to static validation
         static_ok, static_logs = static_validate_block_json(block_json)
-        logs = 'Docker attempt failed:\n' + docker_logs + '\nStatic fallback:\n' + static_logs
+        logs = 'Docker attempt failed:\n' + (docker_logs or '') + '\nStatic fallback:\n' + static_logs
         return static_ok, logs
 
     finally:
