@@ -19,17 +19,42 @@ MINECRAFT_BLOCK_TEMPLATE = """{{
 
 app = Flask(__name__)
 
+# Improved styles so the page centers and fills an iframe nicely
 FORM_HTML = """<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <title>SHS ELITE AI - Minecraft Block Generator</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <style>
-        body { background-color: #111; color: #00ff00; font-family: 'Courier New', monospace; padding: 20px; margin: 0; }
-        .card { background: #0f0f0f; padding: 20px; border-radius: 6px; border: 1px solid #222; max-width: 800px; }
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { height: 100%; margin: 0; }
+        body {
+            background-color: #111;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background: #0f0f0f;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #222;
+            width: 90%;
+            max-width: 880px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+        }
+        h2 { margin-top: 0; color: #7cff7c; }
         label, select, input { display:block; margin-bottom:10px; }
         input[type=text] { width:100%; padding:8px; background:#111; color:#fff; border:1px solid #333 }
         input[type=submit] { background:#ffcc00; color:#111; padding:8px 12px; border:none; cursor:pointer }
+        @media (max-width:420px) {
+            .card { padding: 12px; }
+            input[type=submit] { width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -85,19 +110,45 @@ def index():
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <style>
-        body { background-color: #111; color: #00ff00; font-family: 'Courier New', monospace; padding: 20px; margin: 0; }
-        pre { background-color: #1c1c1c; padding: 15px; border: 1px solid #333; overflow-x: auto; color: #fff; white-space: pre-wrap; word-wrap: break-word; }
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { height: 100%; margin: 0; }
+        body {
+            background-color: #111;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .panel {
+            width: 90%;
+            max-width: 980px;
+        }
         .title { color: #ffcc00; font-weight: bold; margin-bottom: 10px; font-size: 16px; letter-spacing: 1px; }
+        pre {
+            background-color: #1c1c1c;
+            padding: 15px;
+            border: 1px solid #333;
+            overflow-x: auto;
+            color: #fff;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+        }
         a { color: #ffcc00; }
     </style>
 </head>
 <body>
-    <div class="title">⚡ SHS ELITE AI - MINECRAFT CODE SUCCESSFUL:</div>
-    <p>Copy this into your Behavior Pack (components/blocks/{{ block_id }}.json):</p>
-    <pre>{{ generated_code }}</pre>
-    <br>
-    <a href="/">[ ← GENERATE ANOTHER BLOCK ]</a>
+    <div class="panel">
+        <div class="title">⚡ SHS ELITE AI - MINECRAFT CODE SUCCESSFUL:</div>
+        <p>Copy this into your Behavior Pack (components/blocks/{{ block_id }}.json):</p>
+        <pre>{{ generated_code }}</pre>
+        <br>
+        <a href="/">[ ← GENERATE ANOTHER BLOCK ]</a>
+    </div>
 </body>
 </html>
 """, block_id=block_id, generated_code=generated_code)
