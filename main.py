@@ -1,4 +1,10 @@
 from flask import Flask, request, render_template_string, escape
+import base64
+import io
+import os
+
+from renderer import render_block_preview
+from verifier import verify_block
 
 # Modèle de code de bloc Minecraft officiel (Structure JSON)
 MINECRAFT_BLOCK_TEMPLATE = """{{
@@ -19,7 +25,10 @@ MINECRAFT_BLOCK_TEMPLATE = """{{
 
 app = Flask(__name__)
 
-# Improved styles so the page centers and fills an iframe nicely
+# Small configuration override by environment
+RETRY_LIMIT = int(os.environ.get("MCDEX_RETRY_LIMIT", "3"))
+VERIFIER_TIMEOUT = int(os.environ.get("MCDEX_VERIFIER_TIMEOUT", "180"))  # seconds
+
 FORM_HTML = """<!DOCTYPE html>
 <html>
 <head>
@@ -27,41 +36,22 @@ FORM_HTML = """<!DOCTYPE html>
     <title>MCDex - Minecraft Block Generator</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <style>
-        *, *::before, *::after { box-sizing: border-box; }
-        html, body { height: 100%; margin: 0; }
-        body {
-            background-color: #111;
-            color: #00ff00;
-            font-family: 'Courier New', monospace;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .card {
-            background: #0f0f0f;
-            padding: 20px;
-            border-radius: 6px;
-            border: 1px solid #222;
-            width: 90%;
-            max-width: 880px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
-        }
-        h2 { margin-top: 0; color: #7cff7c; }
-        label, select, input { display:block; margin-bottom:10px; }
-        input[type=text] { width:100%; padding:8px; background:#111; color:#fff; border:1px solid #333 }
-        input[type=submit] { background:#ffcc00; color:#111; padding:8px 12px; border:none; cursor:pointer }
-        @media (max-width:420px) {
-            .card { padding: 12px; }
-            input[type=submit] { width: 100%; }
-        }
+        /* (kept compact) */
+        body { background-color:#111; color:#00ff00; font-family:'Courier New', monospace; padding:20px; }
+        .card{ background:#0f0f0f; padding:20px; border-radius:6px; border:1px solid #222; max-width:880px; margin:auto;}
+        input[type=text]{ width:100%; padding:8px; background:#111; color:#fff; border:1px solid #333 }
+        input[type=submit]{ background:#ffcc00; color:#111; padding:8px 12px; border:none; cursor:pointer }
+        .layout { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; justify-content:center; }
+        .left, .right { flex:1 1 420px; min-width:300px; }
+        pre{ background:#1c1c1c; padding:15px; color:#fff; overflow:auto; }
+        img.preview { border:1px solid #333; background:#000; max-width:320px; display:block; margin-bottom:10px; }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>MCDex - Minecraft Block Generator</h2>
-        <form method="post">
-            <label>Block name: <input type="text" name="block_name" placeholder="elite_block"></label>
+        <form method="post" action="/api/generate">
+            <label>Block name: <input type="text" name="block_name" placeholder="elite_block" required></label>
             <label>Block type:
                 <select name="block_type">
                     <option value="normal">Normal</option>
@@ -76,88 +66,112 @@ FORM_HTML = """<!DOCTYPE html>
 </html>
 """
 
-
-@app.route("/", methods=["GET", "POST"])
-def index():
-    if request.method == "POST":
-        # Read form values
-        block_name = request.form.get('block_name', 'elite_block')
-        block_type = request.form.get('block_type', 'normal')
-
-        # Clean up name for Minecraft identifier
-        block_id = (block_name or 'elite_block').lower().replace(' ', '_')
-        for char in ['/', '\\', '"', "'", '!', '@', '#', '$', '%', '^', '&', '*', '(', ')']:
-            block_id = block_id.replace(char, '')
-
-        # Tier logic
-        if block_type == 'god_tier':
-            destroy_time = 50.0
-            light_level = 15
-        elif block_type == 'light':
-            destroy_time = 1.0
-            light_level = 10
-        else:
-            destroy_time = 3.0
-            light_level = 0
-
-        generated_code = MINECRAFT_BLOCK_TEMPLATE.format(
-            block_id=escape(block_id),
-            destroy_time=destroy_time,
-            light_level=light_level
-        )
-
-        html_response = render_template_string("""<!DOCTYPE html>
+RESULT_TEMPLATE = """<!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <style>
-        *, *::before, *::after { box-sizing: border-box; }
-        html, body { height: 100%; margin: 0; }
-        body {
-            background-color: #111;
-            color: #00ff00;
-            font-family: 'Courier New', monospace;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .panel {
-            width: 90%;
-            max-width: 980px;
-        }
-        .title { color: #ffcc00; font-weight: bold; margin-bottom: 10px; font-size: 16px; letter-spacing: 1px; }
-        pre {
-            background-color: #1c1c1c;
-            padding: 15px;
-            border: 1px solid #333;
-            overflow-x: auto;
-            color: #fff;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            margin: 0;
-        }
-        a { color: #ffcc00; }
-    </style>
+<meta charset="utf-8">
+<title>MCDex - Result</title>
+<style>
+body { background:#111; color:#fff; font-family:monospace; padding:20px; }
+.container { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
+.left { flex:1 1 420px; min-width:300px; }
+.right { width:360px; }
+.preview { border:1px solid #333; background:#000; padding:8px; }
+pre { background:#1c1c1c; padding:12px; overflow:auto; }
+.status-pass { color:#7cff7c; font-weight:bold; }
+.status-fail { color:#ff6b6b; font-weight:bold; }
+</style>
 </head>
 <body>
-    <div class="panel">
-        <div class="title">⚡ MCDex - MINECRAFT CODE SUCCESSFUL:</div>
-        <p>Copy this into your Behavior Pack (components/blocks/{{ block_id }}.json):</p>
-        <pre>{{ generated_code }}</pre>
-        <br>
-        <a href="/">[ ← GENERATE ANOTHER BLOCK ]</a>
+    <div class="container">
+        <div class="left">
+            <div><strong>Generated block identifier:</strong> {{ block_id }}</div>
+            <h3>Block JSON</h3>
+            <pre>{{ generated_code }}</pre>
+            <h3>Verification logs</h3>
+            <pre>{{ verification_logs }}</pre>
+            <div><a href="/">← Generate another block</a></div>
+        </div>
+        <div class="right">
+            <div class="preview">
+                <div><strong>Preview</strong></div>
+                <img class="preview" src="data:image/png;base64,{{ preview_data }}" alt="block preview"/>
+                <div>Status: <span class="{{ status_class }}">{{ status_text }}</span></div>
+            </div>
+        </div>
     </div>
 </body>
 </html>
-""", block_id=block_id, generated_code=generated_code)
+"""
 
-        return html_response, 200, {'Content-Type': 'text/html; charset=utf-8'}
-
-    # GET -> show form
+@app.route("/", methods=["GET"])
+def index():
     return FORM_HTML, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
+@app.route("/api/generate", methods=["POST"])
+def api_generate():
+    block_name = request.form.get('block_name', 'elite_block')
+    block_type = request.form.get('block_type', 'normal')
+
+    # sanitize
+    block_id = (block_name or 'elite_block').lower().replace(' ', '_')
+    for char in ['/', '\\', '"', "'", '!', '@', '#', '$', '%', '^', '&', '*', '(', ')']:
+        block_id = block_id.replace(char, '')
+
+    if block_type == 'god_tier':
+        destroy_time = 50.0
+        light_level = 15
+    elif block_type == 'light':
+        destroy_time = 1.0
+        light_level = 10
+    else:
+        destroy_time = 3.0
+        light_level = 0
+
+    generated_code = MINECRAFT_BLOCK_TEMPLATE.format(
+        block_id=escape(block_id),
+        destroy_time=destroy_time,
+        light_level=light_level
+    )
+
+    final_success = False
+    final_logs = ""
+    preview_b64 = ""
+    status_text = "UNKNOWN"
+    status_class = ""
+
+    # attempt verification with retries
+    for attempt in range(1, RETRY_LIMIT + 1):
+        # render preview
+        img = render_block_preview(block_id, light_level=light_level, size=320)
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        preview_b64 = base64.b64encode(buf.getvalue()).decode('ascii')
+
+        # try full verification
+        ok, logs = verify_block(generated_code, block_id, timeout=VERIFIER_TIMEOUT)
+        final_logs = f"Attempt {attempt}/{RETRY_LIMIT}\n" + logs
+        if ok:
+            final_success = True
+            break
+        # if not ok, loop again to retry (regeneration strategy could be improved by varying parameters)
+    if final_success:
+        status_text = "PASS (Fully verified on Java + Bedrock)"
+        status_class = "status-pass"
+    else:
+        status_text = "FAIL (verification failed after retries)"
+        status_class = "status-fail"
+
+    html = render_template_string(
+        RESULT_TEMPLATE,
+        block_id=block_id,
+        generated_code=generated_code,
+        verification_logs=final_logs,
+        preview_data=preview_b64,
+        status_text=status_text,
+        status_class=status_class
+    )
+    return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", "5000")))
