@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SHS Elite - AI Mod Generator</title>
-    <!-- Favicon officiel gagnant de Null/V0ID -->
+    <!-- Favicon officiel de ton studio -->
     <link rel="icon" type="image/png" href="/favicon.png?v=final">
     <style>
         body {
@@ -73,10 +73,10 @@
             color: #121212;
             transition: 0.2s ease-in-out;
         }
-        /* Fenêtre d'affichage dynamique adaptée aux grands écrans (80% de la hauteur) */
+        /* Console responsive occupant 60% de la hauteur restante */
         iframe {
             width: 100%;
-            height: 50vh;
+            height: 55vh;
             border: 1px solid #333;
             background-color: #111;
             box-sizing: border-box;
@@ -87,15 +87,15 @@
 
     <header>
         <h1>SHAHADAH STUDIOS ELITE</h1>
-        <div class="studio-tag">AI DIVISION // MINECRAFT MOD GENERATOR v1.0</div>
+        <div class="studio-tag">Vercel V3 Engine // AI DIVISION v1.0</div>
     </header>
 
     <div class="generator-box">
-        <!-- Remplacer l'URL ci-dessous par ton vrai lien généré par Render à la création du Web Service -->
-        <form action="https://onrender.com" method="POST" target="console-output">
+        <!-- Route locale ultra-rapide pointant vers ton dossier api -->
+        <form action="/api/main" method="POST" target="console-output">
             
             <label for="block_name">BLOCK NAME:</label>
-            <input type="text" id="block_name" name="block_name" placeholder="e.g., Elite Ore" required>
+            <input type="text" id="block_name" name="block_name" placeholder="e.g., Matrix Core" required>
 
             <label for="block_type">BLOCK CATEGORY / TIER:</label>
             <select id="block_type" name="block_type">
@@ -104,12 +104,12 @@
                 <option value="god_tier">Unbreakable Matrix (God Tier)</option>
             </select>
 
-            <button type="submit">[ Initiate AI Code Generation ]</button>
+            <button type="submit">[ INITIATE AI CODE GENERATION ]</button>
         </form>
     </div>
 
-    <!-- Zone de réception de la console d'affichage -->
-    <iframe name="console-output" src="https://backend-shs-ai.onrender.com"></iframe>
+    <!-- Fenêtre d'affichage pour la console de ton Python -->
+    <iframe name="console-output" src="about:blank"></iframe>
 
 </body>
 </html>
