@@ -179,7 +179,23 @@ def api_generate():
     except Exception:
         tb = traceback.format_exc()
         # Render a simple error page showing the traceback so you can debug the cause of 500
-        error_html = render_template_string("""<!doctype html><html><head><meta charset='utf-8'><title>Error</title></head><body style='background:#111;color:#eee;font-family:monospace;padding:20px;'><h2>Internal Error</h2><pre>{{ tb }}</pre><div><a href='/'>Back</a></div></body></html>""", tb=tb)
+        error_html = render_template_string(
+            """<!doctype html>
+            <html>
+            <head>
+              <meta charset='utf-8'>
+              <title>Error</title>
+              <style>body { background:#111; color:#eee; font-family:monospace; padding:20px; }</style>
+            </head>
+            <body>
+              <h1>Internal Server Error</h1>
+              <pre>{{ tb }}</pre>
+              <div><a href="/">← Back</a></div>
+            </body>
+            </html>
+            """,
+            tb=tb
+        )
         return error_html, 500, {'Content-Type': 'text/html; charset=utf-8'}
 
 if __name__ == '__main__':
